@@ -1,0 +1,385 @@
+// Songs view of Yerg Library, laid out like the egui app: top bar, sidebar,
+// sortable track table, empty Now Playing panel and transport bar.
+
+import { LineEdit, ListView, Slider } from "std-widgets.slint";
+
+export struct TrackRow {
+    title: string,
+    time: string,
+    artist: string,
+    album: string,
+    plays: string,
+    rating: int,
+    missing: bool,
+    selected: bool,
+}
+
+global Theme {
+    out property <color> bg: #18191c;
+    out property <color> panel: #1e1f23;
+    out property <color> deep: #121316;
+    out property <color> accent: #3b7dd8;
+    out property <color> hover: #2c2e34;
+    out property <color> line: #2c2e34;
+    out property <color> text: #c8c8c8;
+    out property <color> weak: #8a8a8a;
+    out property <color> star: #e6be3c;
+    out property <color> star-off: #505050;
+}
+
+// Column widths, matching the egui table's defaults.
+global Cols {
+    out property <length> playing: 18px;
+    out property <length> title: 210px;
+    out property <length> time: 52px;
+    out property <length> artist: 140px;
+    out property <length> album: 150px;
+    out property <length> plays: 48px;
+    out property <length> rating: 76px;
+    out property <length> gap: 8px;
+}
+
+component SectionLabel inherits Text {
+    color: Theme.weak;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+component SideItem inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked();
+    height: 26px;
+    border-radius: 3px;
+    background: active ? Theme.accent : (ta.has-hover ? Theme.hover : transparent);
+    Text {
+        x: 8px;
+        height: parent.height;
+        text: root.text;
+        color: root.active ? white : Theme.text;
+        vertical-alignment: center;
+    }
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component Cell inherits Text {
+    vertical-alignment: center;
+    overflow: elide;
+}
+
+component HeaderCell inherits Rectangle {
+    in property <string> text;
+    in property <bool> sorted;
+    in property <bool> descending;
+    in property <bool> right;
+    callback clicked();
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.text + (root.sorted ? (root.descending ? " ▼" : " ▲") : "");
+        color: root.sorted ? white : Theme.text;
+        font-weight: 600;
+        vertical-alignment: center;
+        horizontal-alignment: root.right ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+        overflow: elide;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component Star inherits Rectangle {
+    in property <bool> filled;
+    in property <bool> selected;
+    callback clicked();
+    width: 15px;
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.filled ? "★" : "☆";
+        color: root.filled ? (root.selected ? white : Theme.star) : (root.selected ? #ffffff5a : Theme.star-off);
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component TrackRowView inherits Rectangle {
+    in property <TrackRow> data;
+    in property <int> index;
+    callback pressed(bool /* ctrl */, bool /* shift */);
+    callback activated();
+    callback rate(int);
+    height: 24px;
+    background: data.selected ? Theme.accent : (Math.mod(index, 2) == 1 ? Theme.panel : transparent);
+    property <color> fg: data.missing ? Theme.weak : (data.selected ? white : Theme.text);
+
+    TouchArea {
+        pointer-event(ev) => {
+            if (ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left) {
+                root.pressed(ev.modifiers.control, ev.modifiers.shift);
+            }
+        }
+        double-clicked => { root.activated(); }
+    }
+    HorizontalLayout {
+        padding-left: Cols.gap;
+        spacing: Cols.gap;
+        Rectangle { width: Cols.playing; }
+        Cell { width: Cols.title; text: data.title; color: fg; }
+        Cell { width: Cols.time; text: data.time; color: fg; horizontal-alignment: right; }
+        Cell { width: Cols.artist; text: data.artist; color: fg; }
+        Cell { width: Cols.album; text: data.album; color: fg; }
+        Cell { width: Cols.plays; text: data.plays; color: fg; horizontal-alignment: right; }
+        HorizontalLayout {
+            width: Cols.rating;
+            for n in 5: Star {
+                filled: n < data.rating;
+                selected: data.selected;
+                clicked => { root.rate(n + 1 == data.rating ? 0 : n + 1); }
+            }
+        }
+        Rectangle { }
+    }
+}
+
+component TransportGlyph inherits Rectangle {
+    in property <string> glyph;
+    in property <length> size: 18px;
+    callback clicked();
+    width: 30px;
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.glyph;
+        font-size: root.size;
+        color: ta.has-hover ? white : Theme.text;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: "Yerg Library (Slint prototype)";
+    preferred-width: 1240px;
+    preferred-height: 780px;
+    min-width: 820px;
+    min-height: 520px;
+    background: Theme.bg;
+    default-font-size: 13px;
+
+    in property <[TrackRow]> tracks;
+    in property <string> footer;
+    in property <string> stats;
+    in property <int> sort-col: -1;
+    in property <bool> sort-desc;
+    in property <bool> show-now-playing: true;
+    in-out property <length> scroll-y <=> list.content-y;
+    out property <length> list-visible-height: list.visible-height;
+    out property <length> list-viewport-height: list.content-height;
+
+    callback sort(int);
+    callback search(string);
+    callback row-pressed(int, bool, bool);
+    callback row-activated(int);
+    callback rate(int, int);
+    callback toggle-now-playing();
+
+    VerticalLayout {
+        // Top bar
+        Rectangle {
+            height: 40px;
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 6px;
+                padding-bottom: 6px;
+                spacing: 8px;
+                Text {
+                    text: "Songs";
+                    font-size: 18px;
+                    color: white;
+                    vertical-alignment: center;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                LineEdit {
+                    width: 250px;
+                    placeholder-text: "Search (Ctrl+F)";
+                    edited(text) => { root.search(text); }
+                }
+                Rectangle {
+                    width: 120px;
+                    border-radius: 3px;
+                    background: root.show-now-playing ? Theme.accent : Theme.hover;
+                    Text {
+                        text: "♪ Now Playing";
+                        color: white;
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
+                        width: parent.width;
+                        height: parent.height;
+                    }
+                    TouchArea {
+                        clicked => { root.toggle-now-playing(); }
+                    }
+                }
+            }
+        }
+        Rectangle { height: 1px; background: Theme.line; }
+
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            // Sidebar
+            Rectangle {
+                width: 210px;
+                VerticalLayout {
+                    padding: 8px;
+                    spacing: 2px;
+                    alignment: start;
+                    SectionLabel { text: "LIBRARY"; }
+                    SideItem { text: "Songs"; active: true; }
+                    SideItem { text: "Artists"; }
+                    SideItem { text: "Album Artists"; }
+                    SideItem { text: "Albums"; }
+                    SideItem { text: "Genres"; }
+                    SideItem { text: "Recently Added"; }
+                    SideItem { text: "Recently Played"; }
+                    SideItem { text: "Most Played"; }
+                    Rectangle { height: 8px; }
+                    SectionLabel { text: "PLAYING"; }
+                    SideItem { text: "Up Next"; }
+                    SideItem { text: "History"; }
+                    Rectangle { height: 8px; }
+                    SectionLabel { text: "PLAYLISTS"; }
+                    Rectangle { height: 8px; }
+                    SectionLabel { text: "DEVICE"; }
+                    Rectangle { height: 12px; }
+                    Text {
+                        text: root.stats;
+                        color: Theme.weak;
+                        font-size: 10px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            Rectangle { width: 1px; background: Theme.line; }
+
+            // Track table
+            VerticalLayout {
+                horizontal-stretch: 1;
+                Rectangle {
+                    height: 24px;
+                    HorizontalLayout {
+                        padding-left: Cols.gap;
+                        spacing: Cols.gap;
+                        Rectangle { width: Cols.playing; }
+                        HeaderCell { width: Cols.title; text: "Title"; sorted: root.sort-col == 1; descending: root.sort-desc; clicked => { root.sort(1); } }
+                        HeaderCell { width: Cols.time; text: "Time"; right: true; sorted: root.sort-col == 2; descending: root.sort-desc; clicked => { root.sort(2); } }
+                        HeaderCell { width: Cols.artist; text: "Artist"; sorted: root.sort-col == 3; descending: root.sort-desc; clicked => { root.sort(3); } }
+                        HeaderCell { width: Cols.album; text: "Album"; sorted: root.sort-col == 4; descending: root.sort-desc; clicked => { root.sort(4); } }
+                        HeaderCell { width: Cols.plays; text: "Plays"; right: true; sorted: root.sort-col == 5; descending: root.sort-desc; clicked => { root.sort(5); } }
+                        HeaderCell { width: Cols.rating; text: "Rating"; sorted: root.sort-col == 6; descending: root.sort-desc; clicked => { root.sort(6); } }
+                        Rectangle { }
+                    }
+                }
+                list := ListView {
+                    vertical-stretch: 1;
+                    for row[i] in root.tracks: TrackRowView {
+                        data: row;
+                        index: i;
+                        pressed(ctrl, shift) => { root.row-pressed(i, ctrl, shift); }
+                        activated => { root.row-activated(i); }
+                        rate(r) => { root.rate(i, r); }
+                    }
+                }
+                Rectangle { height: 1px; background: Theme.line; }
+                Text {
+                    height: 24px;
+                    x: 8px;
+                    text: root.footer;
+                    color: Theme.weak;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Now Playing panel (empty while nothing plays, as in the egui app)
+            if root.show-now-playing: HorizontalLayout {
+                Rectangle { width: 1px; background: Theme.line; }
+                Rectangle {
+                    width: 300px;
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 8px;
+                        alignment: start;
+                        Rectangle {
+                            height: 276px;
+                            border-radius: 6px;
+                            background: Theme.panel;
+                        }
+                        Text {
+                            text: "Nothing playing";
+                            color: Theme.weak;
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.line; }
+
+        // Transport
+        Rectangle {
+            height: 72px;
+            background: Theme.deep;
+            HorizontalLayout {
+                padding: 8px;
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 10px;
+                Rectangle {
+                    width: 56px;
+                    border-radius: 4px;
+                    background: Theme.panel;
+                }
+                Text {
+                    width: 120px;
+                    text: "Not playing";
+                    color: Theme.weak;
+                    vertical-alignment: center;
+                }
+                TransportGlyph { glyph: "⤮"; }
+                TransportGlyph { glyph: "⏮"; }
+                TransportGlyph { glyph: "▶"; size: 22px; }
+                TransportGlyph { glyph: "⏭"; }
+                TransportGlyph { glyph: "↻"; }
+                Slider {
+                    width: 300px;
+                    minimum: 0;
+                    maximum: 1;
+                    value: 0;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Text {
+                    text: "🔊";
+                    vertical-alignment: center;
+                    color: Theme.text;
+                }
+                Slider {
+                    width: 110px;
+                    minimum: 0;
+                    maximum: 1;
+                    value: 0.8;
+                }
+            }
+        }
+    }
+}

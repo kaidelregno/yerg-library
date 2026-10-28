@@ -1,0 +1,22 @@
+[package]
+name = "yerg-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command line front end for Yerg Library"
+
+[[bin]]
+name = "yerg"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+clap.workspace = true
+crossbeam-channel.workspace = true
+chrono.workspace = true
+open.workspace = true
+yerg-core = { path = "../yerg-core" }
+yerg-sync = { path = "../yerg-sync" }
+yerg-scrobble = { path = "../yerg-scrobble" }

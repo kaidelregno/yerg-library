@@ -1,0 +1,25 @@
+[package]
+name = "yerg-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Library database, tag reading, art, lyrics, playlists and play history for Yerg Library"
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+rusqlite.workspace = true
+lofty.workspace = true
+walkdir.workspace = true
+rayon.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+image.workspace = true
+directories.workspace = true
+crossbeam-channel.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,32 @@
+[package]
+name = "yerg-slint-proto"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Prototype: the Songs view in Slint with the software renderer, for comparing against the egui app"
+
+# Its own workspace, so the main build never compiles Slint.
+[workspace]
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = [
+    "std",
+    "compat-1-2",
+    "accessibility",
+    "backend-winit",
+    "renderer-software",
+    "software-renderer-systemfonts",
+    "software-renderer-path",
+] }
+yerg-core = { path = "../../crates/yerg-core" }
+yerg-player = { path = "../../crates/yerg-player" }
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+# Same as the main workspace, so the comparison is like for like.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true

@@ -1,0 +1,36 @@
+[package]
+name = "yerg-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Yerg Library desktop audio player"
+
+[[bin]]
+name = "yerg-library"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+eframe.workspace = true
+egui.workspace = true
+egui_extras = { workspace = true, features = ["file", "image", "svg"] }
+toml = "1"
+toml_edit = "0.25"
+fontdb = "0.24"
+rfd.workspace = true
+open.workspace = true
+image.workspace = true
+chrono.workspace = true
+crossbeam-channel.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+yerg-core = { path = "../yerg-core" }
+yerg-player = { path = "../yerg-player" }
+yerg-scrobble = { path = "../yerg-scrobble" }
+yerg-sync = { path = "../yerg-sync" }
+
+[dev-dependencies]
+tempfile.workspace = true

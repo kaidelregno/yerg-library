@@ -1,0 +1,25 @@
+# Build output, at the top and in every nested crate (prototypes/ has its own)
+target/
+**/*.rs.bk
+*.pdb
+
+# Library databases and run files, if one is made inside the repo
+# (the app keeps its own in the system app-data folder)
+*.db
+*.db-wal
+*.db-shm
+*.log
+session.lock
+crash.pending
+
+# Editors
+/.vscode
+/.idea
+*.swp
+*~
+.claude/settings.local.json
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini

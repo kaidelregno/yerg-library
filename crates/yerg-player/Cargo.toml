@@ -1,0 +1,19 @@
+[package]
+name = "yerg-player"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Audio playback engine for Yerg Library"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+rodio.workspace = true
+crossbeam-channel.workspace = true
+parking_lot.workspace = true
+symphonia.workspace = true
+rubato.workspace = true
+yerg-core = { path = "../yerg-core" }
+
+[dev-dependencies]
+tempfile.workspace = true

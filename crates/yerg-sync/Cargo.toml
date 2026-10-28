@@ -1,0 +1,20 @@
+[package]
+name = "yerg-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Sync the library to the Yerg MP3 player: file copy, device index, listen import"
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+deunicode.workspace = true
+chrono.workspace = true
+crossbeam-channel.workspace = true
+yerg-core = { path = "../yerg-core" }
+
+[dev-dependencies]
+tempfile.workspace = true
